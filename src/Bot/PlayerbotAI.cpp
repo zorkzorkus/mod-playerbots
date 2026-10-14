@@ -4726,16 +4726,20 @@ bool PlayerbotAI::AllowActive(ActivityType activityType)
     if (activityType == PACKET_ACTIVITY)
         return true;
 
-    // all bots forced active, no rotation or scaling needed
-    if (sPlayerbotAIConfig.BotActiveAlone >= 100 && !sPlayerbotAIConfig.BotActiveAloneSmartScale)
-        return true;
-
-    // bot is in combat, always defend yourself
+    // bot is in combat, always defend yourself (checked before sleep so a running fight is finished)
     if (activityType != OUT_OF_PARTY_ACTIVITY && activityType != PACKET_ACTIVITY)
     {
         if (bot->IsInCombat())
             return true;
     }
+
+    // no real player online for longer than SleepWhenNoRealPlayerDelay: every bot sleeps
+    if (sRandomPlayerbotMgr.AreBotsAsleep())
+        return false;
+
+    // all bots forced active, no rotation or scaling needed
+    if (sPlayerbotAIConfig.BotActiveAlone >= 100 && !sPlayerbotAIConfig.BotActiveAloneSmartScale)
+        return true;
 
     // bot is inside a BG, dungeon, or raid — always active
     if (!WorldPosition(bot).isOverworld())

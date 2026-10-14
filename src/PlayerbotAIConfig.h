@@ -370,6 +370,8 @@ public:
     uint32 BotActiveAloneSmartScaleDiffLimitCeiling;
     uint32 BotActiveAloneSmartScaleWhenMinLevel;
     uint32 BotActiveAloneSmartScaleWhenMaxLevel;
+    bool SleepWhenNoRealPlayer;
+    uint32 SleepWhenNoRealPlayerDelay;
 
     bool FreeMethodLoot;
     int32 LootNeedRollLevel;

@@ -12,6 +12,7 @@
 #include "ObjectGuid.h"
 #include "PlayerbotCommandServer.h"
 #include "PlayerbotMgr.h"
+#include <atomic>
 #include <unordered_set>
 
 struct BattlegroundInfo
@@ -121,6 +122,8 @@ public:
     void OnPlayerLoginError(uint32 bot);
     Player* GetRandomPlayer();
     std::vector<Player*> GetPlayers() { return players; };
+    // True while no real player has been online for longer than SleepWhenNoRealPlayerDelay
+    bool AreBotsAsleep() const { return botsAsleep.load(std::memory_order_relaxed); }
     PlayerBotMap GetAllBots() { return playerBots; };
     void InitArenaTeams();
     void PrintStats();
@@ -234,6 +237,9 @@ private:
     time_t LfgCheckTimer;
     time_t PlayersCheckTimer;
     time_t RealPlayerLastTimeSeen = 0;
+    time_t sleepRealPlayerLastSeen = 0;
+    std::atomic<bool> botsAsleep{false};
+    void UpdateSleepState();
     time_t DelayLoginBotsTimer;
     time_t printStatsTimer;
     uint32 AddRandomBots();

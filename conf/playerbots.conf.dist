@@ -1295,6 +1295,20 @@ Playerbots.BotActiveAloneForceWhenInMap = 0
 Playerbots.BotActiveAloneForceWhenIsFriend = 0
 Playerbots.BotActiveAloneForceWhenInGuild = 1
 
+# SleepWhenNoRealPlayer
+#   When enabled, all bots go to sleep (stay logged in, but stop questing and
+#   traveling) while no real player is online. This overrides BotActiveAlone and every
+#   force-active rule above. Bots engaged in combat will still retaliate.
+#   GMs and selfbots count as real players
+#   Default: 0 (disabled)
+#            1 (enabled)
+# SleepWhenNoRealPlayerDelay
+#   Seconds to wait after the last real player leaves before
+#   the bots go to sleep.
+#   Default: 180
+Playerbots.SleepWhenNoRealPlayer = 0
+Playerbots.SleepWhenNoRealPlayerDelay = 180
+
 # SmartScale — automatically reduces active bots when the server is struggling.
 # Monitors the server's update time (how long each server tick takes in milliseconds).
 # When the server slows down, fewer bots are kept active to reduce load.
