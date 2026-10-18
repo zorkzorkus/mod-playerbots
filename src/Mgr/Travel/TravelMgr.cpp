@@ -4408,7 +4408,33 @@ std::vector<uint32> TravelMgr::GetFlightNodesInZone(uint32 zoneId, TeamId team, 
     return result;
 }
 
-std::vector<std::vector<uint32>> TravelMgr::GetOptimalFlightDestinations(Player* bot)
+std::vector<uint32> TravelMgr::GetCapitalZones(TeamId team)
+{
+    std::vector<uint32> zones;
+    for (Capital const& capital : capitals)
+    {
+        if (capital.team == TEAM_NEUTRAL || capital.team == team)
+            zones.push_back(capital.zoneId);
+    }
+    return zones;
+}
+
+bool TravelMgr::IsCapitalZone(uint32 zoneId) { return FindCapitalByZone(zoneId) != nullptr; }
+
+std::vector<WorldLocation> TravelMgr::GetCapitalBankerLocations(uint32 zoneId) const
+{
+    std::vector<WorldLocation> locs;
+    for (auto const& [entry, loc] : bankerEntryToLocation)
+    {
+        Capital const* capital = FindCapitalByBanker(entry);
+        if (capital && capital->zoneId == zoneId)
+            locs.push_back(loc);
+    }
+    return locs;
+}
+
+std::vector<std::vector<uint32>> TravelMgr::GetOptimalFlightDestinations(Player* bot,
+    FlightDestinationOptions const& options)
 {
     std::vector<std::vector<uint32>> validDestinations;
 
@@ -4434,7 +4460,9 @@ std::vector<std::vector<uint32>> TravelMgr::GetOptimalFlightDestinations(Player*
 
     //Simplify destination delection. Its either target cities (Based on config value) or target world.
     std::vector<uint32> candidateZones;
-    if (botLevel >= 10 && !botInCapital && urand(0, 100) < sPlayerbotAIConfig.ProbTeleToBankers * 100)
+    float const capitalChance =
+        options.capitalChance < 0.0f ? sPlayerbotAIConfig.ProbTeleToBankers : options.capitalChance;
+    if (botLevel >= 10 && !botInCapital && urand(0, 100) < capitalChance * 100)
     {
         TeamId botTeam = bot->GetTeamId();
         for (Capital const& capital : capitals)

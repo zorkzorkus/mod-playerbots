@@ -38,6 +38,13 @@ public:
     void OnBotLevelChanged(Player* player, uint8 oldLevel);
     void OnPlayerLogout(Player* player);
 
+    // Working bracket copy for one faction (clamped, and reweighted if dynamic distribution is on).
+    // World thread only.
+    std::vector<LevelBracketConfig> GetWorkingRanges(TeamId team) const
+    {
+        return team == TEAM_ALLIANCE ? _allianceRanges : _hordeRanges;
+    }
+
 private:
     RandomBotLevelMgr() = default;
     ~RandomBotLevelMgr() = default;

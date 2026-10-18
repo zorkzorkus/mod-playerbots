@@ -1460,6 +1460,90 @@ Playerbots.RpgStatusProbWeight.Rest = 5
 Playerbots.RpgStatusProbWeight.OutdoorPvp = 10
 Playerbots.RpgStatusProbWeight.DoGather = 15
 
+# Bot personalities (requires EnableNewRpgStrategy)
+# Each bot gets a fixed personality derived from its character GUID. The personality replaces the
+# RpgStatusProbWeight values above with its own mix of activities (a weight of 0 above still
+# disables an activity for every bot). Rough share of time:
+#   Quester    75% questing, the rest spread over everything else
+#   Grinder    75% killing mobs, 10% questing
+#   Traveler   35% questing, 20% flying to other zones of its level, 20% camps and NPCs
+#   Lazy       stays at a quest hub or inn: 65% sitting, 30% chatting with NPCs, 5% questing.
+#              Away from one, it walks to a quest hub in its zone.
+#   CityIdler  teleports to a city (see CityIdler settings below) and idles there like a player:
+#              stands or sits at a random open spot for 30 s to 15 min, then walks to another
+#              one. About 20% of its time it visits NPCs. Behaves like Lazy while it cannot get
+#              into a city.
+#   Gatherer   60% roaming the zone for herb and ore nodes, the rest at camp. Needs Herbalism or
+#              Mining, otherwise behaves like Lazy. Gathering still gives some XP.
+# Activities that are not possible at the moment (no quest, no flight master nearby, full bags)
+# drop out, and the others keep their ratio. Below level 5 there are no quest hubs to return to.
+# Personalities only change what bots do between other tasks. Dungeon finder, battlegrounds and
+# groups with players work as before.
+# Default: 0 (disabled)
+Playerbots.Personality.Enabled = 0
+
+# Share of bots per personality. The values are relative weights and need not sum to 100.
+# Changing them reassigns the personality of some bots.
+# Default: 20 each
+Playerbots.Personality.Pct.Quester = 20
+Playerbots.Personality.Pct.Grinder = 20
+Playerbots.Personality.Pct.Traveler = 20
+Playerbots.Personality.Pct.Lazy = 20
+Playerbots.Personality.Pct.CityIdler = 20
+Playerbots.Personality.Pct.Gatherer = 20
+
+# Personalities at the bot level cap (RandomBotMaxLevel, limited to the server's MaxPlayerLevel)
+# Bots at the cap roll once more: they become CityIdler or Lazy, or keep their own personality.
+# Raising the cap gives them back their own personality. Shares are relative weights.
+# Set all three to 0 to disable.
+# Default: 50 / 25 / 25
+Playerbots.Personality.MaxLevel.CityIdler = 50
+Playerbots.Personality.MaxLevel.Lazy = 25
+Playerbots.Personality.MaxLevel.Keep = 25
+
+# Maximum number of CityIdler bots counted per city. If the chosen city is full, the bot picks
+# another viable city that is not full. The count refreshes every UpdateFrequency seconds.
+# Default: 8 (0 = no limit)
+Playerbots.Personality.CityIdlerMaxPerCity = 8
+
+# CityIdler destinations
+# Each time a CityIdler is outside a city, it rolls one of these city types:
+#   Capital  Stormwind (Alliance) or Orgrimmar (Horde)
+#   Racial   the home city of its race (humans: Stormwind, orcs and trolls: Orgrimmar)
+#   Random   any city of its faction, plus Shattrath and Dalaran if its level allows them
+#   Neutral  Shattrath from ShattrathMinLevel, Dalaran from DalaranMinLevel
+# It then teleports to a random spot near a banker in that city, but not while a real player is
+# within sight.
+# Low applies below ShattrathMinLevel, High from ShattrathMinLevel. Shares are relative weights.
+Playerbots.Personality.CityIdler.ShattrathMinLevel = 60
+Playerbots.Personality.CityIdler.DalaranMinLevel = 71
+Playerbots.Personality.CityIdler.Low.Capital = 70
+Playerbots.Personality.CityIdler.Low.Racial = 20
+Playerbots.Personality.CityIdler.Low.Random = 10
+Playerbots.Personality.CityIdler.High.Neutral = 50
+Playerbots.Personality.CityIdler.High.Capital = 30
+Playerbots.Personality.CityIdler.High.Racial = 10
+Playerbots.Personality.CityIdler.High.Random = 10
+
+# How often (in seconds) city counts and level pressure are recalculated. Minimum 10.
+# Default: 60
+Playerbots.Personality.UpdateFrequency = 60
+
+# Level pressure
+# Compares how many random bots are in each level bracket against the bracket's target percentage
+# (Playerbots.LevelBrackets.* ranges, used even if Playerbots.LevelBrackets.Enabled = 0). In an
+# overcrowded bracket, bots quest and grind less (DoQuest, GoGrind and WanderRandom are scaled
+# down, on top of any personality) and their flights go to capitals more often. Works with or
+# without personalities.
+# Default: 0 (disabled)
+Playerbots.Personality.Pressure.Enabled = 0
+
+# Lowest factor (in percent) applied to questing and grinding in the most overcrowded bracket.
+# Example: a bracket with twice its target share gets 50%, with four times its share 25%,
+# never less than this value.
+# Default: 20
+Playerbots.Personality.Pressure.MinFactor = 20
+
 # Bots' minimum and maximum level when teleporting in and out of a zone, according to the new RPG strategy
 # Format: Playerbots.ZoneBracket.zoneID = minLevel,maxLevel
 #

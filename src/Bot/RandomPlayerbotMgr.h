@@ -136,6 +136,8 @@ public:
     void RandomTeleportForLevel(Player* bot);
     void RandomTeleportGrindForLevel(Player* bot);
     void RandomTeleportForRpg(Player* bot);
+    // Teleports to one of the given locations, with the usual safety checks (no real player nearby, etc.).
+    void RandomTeleportToLocations(Player* bot, std::vector<WorldLocation>& locs) { RandomTeleport(bot, locs); }
     uint32 GetMaxAllowedBotCount();
     bool ProcessBot(Player* player);
     void Revive(Player* player);

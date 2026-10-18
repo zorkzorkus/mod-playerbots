@@ -842,6 +842,12 @@ protected:
     WorldPosition* wPosition = nullptr;
 };
 
+// Overrides for TravelMgr::GetOptimalFlightDestinations. The defaults reproduce the config-driven behaviour.
+struct FlightDestinationOptions
+{
+    float capitalChance = -1.0f; // chance (0..1) to pick a capital; negative uses ProbTeleToBankers
+};
+
 // General container for all travel destinations.
 class TravelMgr
 {
@@ -875,7 +881,11 @@ public:
     void Init();
 
     FlightMasterInfo const* GetNearestFlightMasterInfo(Player* bot) const;
-    std::vector<std::vector<uint32>> GetOptimalFlightDestinations(Player* bot);
+    std::vector<std::vector<uint32>> GetOptimalFlightDestinations(Player* bot,
+        FlightDestinationOptions const& options = {});
+    static std::vector<uint32> GetCapitalZones(TeamId team); // own faction's capitals plus neutral ones
+    static bool IsCapitalZone(uint32 zoneId);
+    std::vector<WorldLocation> GetCapitalBankerLocations(uint32 zoneId) const;
     const std::vector<WorldLocation> GetTeleportLocations(Player* bot);
     const std::vector<WorldLocation> GetTravelHubs(Player* bot);
     std::vector<WorldLocation> GetCityLocations(Player* bot);

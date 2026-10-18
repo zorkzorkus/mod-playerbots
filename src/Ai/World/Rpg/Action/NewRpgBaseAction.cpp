@@ -5,6 +5,7 @@
  */
 
 #include "NewRpgBaseAction.h"
+#include "BotPersonalityMgr.h"
 #include "BroadcastHelper.h"
 #include "ChatHelper.h"
 #include "Creature.h"
@@ -1073,13 +1074,14 @@ WorldPosition NewRpgBaseAction::SelectRandomCampPos(Player* bot)
     return dest;
 }
 
-bool NewRpgBaseAction::SelectRandomFlightTaxiNode(uint32& flightMasterEntry, WorldPosition& flightMasterPos, std::vector<uint32>& path)
+bool NewRpgBaseAction::SelectRandomFlightTaxiNode(uint32& flightMasterEntry, WorldPosition& flightMasterPos,
+    std::vector<uint32>& path, FlightDestinationOptions const& flightOptions)
 {
     TravelMgr::FlightMasterInfo const* info = sTravelMgr.GetNearestFlightMasterInfo(bot);
     if (!info)
         return false;
 
-    std::vector<std::vector<uint32>> availablePaths = sTravelMgr.GetOptimalFlightDestinations(bot);
+    std::vector<std::vector<uint32>> availablePaths = sTravelMgr.GetOptimalFlightDestinations(bot, flightOptions);
     if (availablePaths.empty())
         return false;
 
@@ -1093,17 +1095,21 @@ bool NewRpgBaseAction::SelectRandomFlightTaxiNode(uint32& flightMasterEntry, Wor
 
 bool NewRpgBaseAction::RandomChangeStatus(std::vector<NewRpgStatus> candidateStatus)
 {
+    std::array<uint32, RPG_STATUS_END> weights{};
+    FlightDestinationOptions flightOptions;
+    BotPersonalityMgr::instance().GetRpgWeights(bot, weights, flightOptions);
+
     std::vector<NewRpgStatus> availableStatus;
     uint32 probSum = 0;
     for (NewRpgStatus status : candidateStatus)
     {
-        if (sPlayerbotAIConfig.RpgStatusProbWeight[status] == 0)
+        if (status < 0 || status >= RPG_STATUS_END || weights[status] == 0)
             continue;
 
-        if (CheckRpgStatusAvailable(status))
+        if (CheckRpgStatusAvailable(status, flightOptions))
         {
             availableStatus.push_back(status);
-            probSum += sPlayerbotAIConfig.RpgStatusProbWeight[status];
+            probSum += weights[status];
         }
     }
     // Safety check. Default to "rest" if all RPG weights = 0
@@ -1118,7 +1124,7 @@ bool NewRpgBaseAction::RandomChangeStatus(std::vector<NewRpgStatus> candidateSta
     NewRpgStatus chosenStatus = RPG_STATUS_END;
     for (NewRpgStatus status : availableStatus)
     {
-        accumulate += sPlayerbotAIConfig.RpgStatusProbWeight[status];
+        accumulate += weights[status];
         if (accumulate >= rand)
         {
             chosenStatus = status;
@@ -1190,7 +1196,7 @@ bool NewRpgBaseAction::RandomChangeStatus(std::vector<NewRpgStatus> candidateSta
             uint32 flightMasterEntry = 0;
             WorldPosition flightMasterPos;
             std::vector<uint32> path;
-            if (SelectRandomFlightTaxiNode(flightMasterEntry, flightMasterPos, path))
+            if (SelectRandomFlightTaxiNode(flightMasterEntry, flightMasterPos, path, flightOptions))
             {
                 botAI->rpgInfo.ChangeToTravelFlight(flightMasterEntry, flightMasterPos, path);
                 return true;
@@ -1228,7 +1234,7 @@ bool NewRpgBaseAction::RandomChangeStatus(std::vector<NewRpgStatus> candidateSta
     return false;
 }
 
-bool NewRpgBaseAction::CheckRpgStatusAvailable(NewRpgStatus status)
+bool NewRpgBaseAction::CheckRpgStatusAvailable(NewRpgStatus status, FlightDestinationOptions const& flightOptions)
 {
     switch (status)
     {
@@ -1289,7 +1295,7 @@ bool NewRpgBaseAction::CheckRpgStatusAvailable(NewRpgStatus status)
             uint32 flightMasterEntry = 0;
             WorldPosition flightMasterPos;
             std::vector<uint32> path;
-            return SelectRandomFlightTaxiNode(flightMasterEntry, flightMasterPos, path);
+            return SelectRandomFlightTaxiNode(flightMasterEntry, flightMasterPos, path, flightOptions);
         }
         case RPG_OUTDOOR_PVP:
         {

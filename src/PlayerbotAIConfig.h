@@ -98,6 +98,7 @@ public:
 
     bool Initialize();
     void LoadRandomBotLevelConfig();
+    void LoadBotPersonalityConfig();
     bool IsInRandomAccountList(uint32 id);
     bool IsInRandomQuestItemList(uint32 id);
     bool IsPvpProhibited(uint32 zoneId, uint32 areaId);
@@ -398,6 +399,31 @@ public:
     bool AutoDoQuests;
     bool EnableNewRpgStrategy;
     std::unordered_map<NewRpgStatus, uint32> RpgStatusProbWeight;
+
+    // Bot personalities and level pressure for the new RPG strategy. See BotPersonalityMgr.
+    bool PersonalityEnabled;
+    uint32 PersonalityPctQuester;
+    uint32 PersonalityPctGrinder;
+    uint32 PersonalityPctTraveler;
+    uint32 PersonalityPctLazy;
+    uint32 PersonalityPctCityIdler;
+    uint32 PersonalityPctGatherer;
+    uint32 PersonalityMaxLevelCityIdler;
+    uint32 PersonalityMaxLevelLazy;
+    uint32 PersonalityMaxLevelKeep;
+    uint32 PersonalityCityIdlerMaxPerCity;
+    uint32 PersonalityCityIdlerShattrathMinLevel;
+    uint32 PersonalityCityIdlerDalaranMinLevel;
+    uint32 PersonalityCityIdlerLowCapital;
+    uint32 PersonalityCityIdlerLowRacial;
+    uint32 PersonalityCityIdlerLowRandom;
+    uint32 PersonalityCityIdlerHighNeutral;
+    uint32 PersonalityCityIdlerHighCapital;
+    uint32 PersonalityCityIdlerHighRacial;
+    uint32 PersonalityCityIdlerHighRandom;
+    uint32 PersonalityUpdateFrequency;
+    bool PersonalityPressureEnabled;
+    uint32 PersonalityPressureMinFactor;
     bool SyncLevelWithPlayers;
     bool RandomBotConcentrateInPlayerZone;
     bool AutoLearnQuestSpells;

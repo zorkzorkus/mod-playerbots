@@ -6,6 +6,7 @@
 
 #include "WhoAction.h"
 #include "AiFactory.h"
+#include "BotPersonalityMgr.h"
 #include "Event.h"
 #include "ItemVisitors.h"
 #include "Playerbots.h"
@@ -39,6 +40,10 @@ bool WhoAction::Execute(Event event)
     else
     {
         out << QuerySpec(text);
+
+        BotPersonality const personality = BotPersonalityMgr::instance().GetPersonality(bot);
+        if (personality != BotPersonality::None)
+            out << ", " << BotPersonalityMgr::GetPersonalityName(personality);
     }
 
     if (!out.str().empty())
