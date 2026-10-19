@@ -15,6 +15,7 @@
 #include <atomic>
 #include <mutex>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 class Player;
@@ -44,7 +45,8 @@ enum class BotActivityProfile : uint8
 };
 
 // Scales the new RPG strategy's status weights per bot. Two independent, opt-in layers:
-// - Personality: fixed per bot, derived from its GUID, so it needs no storage.
+// - Personality: rolled from the bot's GUID and a 2 to 6 hour period, so it needs no storage.
+//   Ignored while the bot is grouped or inside an instance or battleground.
 // - Level pressure: in level brackets holding more random bots than their target share, questing
 //   and grinding are scaled down and flights favour capitals.
 // Update() runs on the world thread and publishes results; GetRpgWeights() is safe on map threads.
@@ -91,7 +93,9 @@ private:
     static BotActivityProfile GetActivityProfile(Player* bot, BotPersonality personality);
     uint32 GetLevelFactorPct(TeamId team, uint8 level) const;
     bool IsCityFull(uint32 zoneId) const;
-    bool TrySendCityIdlerToCity(Player* bot) const;
+    static bool CanTeleportNow(Player* bot);
+    bool TrySendCityIdlerToCity(Player* bot);
+    bool TrySendFormerCityIdlerBack(Player* bot);
     void StartCityIdlerStay(Player* bot, NewRpgInfo& info);
     static WorldPosition SelectCityIdleSpot(Player* bot);
     uint32 SelectCityIdlerCity(Player* bot) const;
@@ -110,6 +114,7 @@ private:
     };
     std::mutex _stayMutex;
     std::unordered_map<ObjectGuid::LowType, CityIdlerStay> _cityIdlerStays;
+    std::unordered_set<ObjectGuid::LowType> _sentToCity;  // teleported into a city as CityIdler
 
     uint32 _updateTimer = 0;
 };

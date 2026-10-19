@@ -1461,29 +1461,30 @@ Playerbots.RpgStatusProbWeight.OutdoorPvp = 10
 Playerbots.RpgStatusProbWeight.DoGather = 15
 
 # Bot personalities (requires EnableNewRpgStrategy)
-# Each bot gets a fixed personality derived from its character GUID. The personality replaces the
-# RpgStatusProbWeight values above with its own mix of activities (a weight of 0 above still
-# disables an activity for every bot). Rough share of time:
+# Each bot rolls a personality from its character GUID, and rolls again every 2 to 6 hours (the
+# period differs per bot). Across all bots the shares below are matched closely. The personality
+# replaces the RpgStatusProbWeight values above with its own mix of activities (a weight of 0
+# above still disables an activity for every bot). Rough share of time:
 #   Quester    75% questing, the rest spread over everything else
 #   Grinder    75% killing mobs, 10% questing
 #   Traveler   35% questing, 20% flying to other zones of its level, 20% camps and NPCs
 #   Lazy       stays at a quest hub or inn: 65% sitting, 30% chatting with NPCs, 5% questing.
 #              Away from one, it walks to a quest hub in its zone.
 #   CityIdler  teleports to a city (see CityIdler settings below) and idles there like a player:
-#              stands or sits at a random open spot for 30 s to 15 min, then walks to another
-#              one. About 20% of its time it visits NPCs. Behaves like Lazy while it cannot get
-#              into a city.
+#              stands or sits at a random open spot for 10 s to 5 min, then walks to another
+#              one. About a quarter of its time it visits NPCs. Behaves like Lazy while it cannot
+#              get into a city. When its period ends, it teleports back to a quest hub of its level.
 #   Gatherer   60% roaming the zone for herb and ore nodes, the rest at camp. Needs Herbalism or
 #              Mining, otherwise behaves like Lazy. Gathering still gives some XP.
 # Activities that are not possible at the moment (no quest, no flight master nearby, full bags)
 # drop out, and the others keep their ratio. Below level 5 there are no quest hubs to return to.
-# Personalities only change what bots do between other tasks. Dungeon finder, battlegrounds and
-# groups with players work as before.
+# Personalities only change what solo bots do in the open world. Bots in a group, a dungeon, a raid
+# or a battleground ignore them completely, and bots queued for dungeon finder or a battleground
+# are never teleported.
 # Default: 0 (disabled)
 Playerbots.Personality.Enabled = 0
 
 # Share of bots per personality. The values are relative weights and need not sum to 100.
-# Changing them reassigns the personality of some bots.
 # Default: 20 each
 Playerbots.Personality.Pct.Quester = 20
 Playerbots.Personality.Pct.Grinder = 20
@@ -1493,7 +1494,8 @@ Playerbots.Personality.Pct.CityIdler = 20
 Playerbots.Personality.Pct.Gatherer = 20
 
 # Personalities at the bot level cap (RandomBotMaxLevel, limited to the server's MaxPlayerLevel)
-# Bots at the cap roll once more: they become CityIdler or Lazy, or keep their own personality.
+# Bots at the cap roll once more each period: they become CityIdler or Lazy, or keep their own
+# personality.
 # Raising the cap gives them back their own personality. Shares are relative weights.
 # Set all three to 0 to disable.
 # Default: 50 / 25 / 25

@@ -7,12 +7,14 @@
 #include "BotPersonalityMgr.h"
 #include "AreaDefines.h"
 #include "DBCStores.h"
+#include "GameTime.h"
+#include "LFGMgr.h"
 #include "Log.h"
 #include "Map.h"
 #include "MapMgr.h"
 #include "NewRpgInfo.h"
-#include "PathGenerator.h"
 #include "ObjectAccessor.h"
+#include "PathGenerator.h"
 #include "Player.h"
 #include "Playerbots.h"
 #include "Random.h"
@@ -122,10 +124,10 @@ uint32 GetExpectedSeconds(NewRpgStatus status)
 constexpr uint32 WEIGHT_SCALE = 3600;
 
 // CityIdler inside a city: stays at a spot for a random time, then either visits NPCs (chance per
-// decision; about 20% of its time, since a visit lasts 5 minutes) or walks to a new open spot.
-constexpr uint32 CITY_IDLER_STAY_MIN_MS = 30 * IN_MILLISECONDS;
-constexpr uint32 CITY_IDLER_STAY_MAX_MS = 15 * MINUTE * IN_MILLISECONDS;
-constexpr uint32 CITY_IDLER_NPC_VISIT_CHANCE = 30;
+// decision; about a quarter of its time, since a visit lasts 5 minutes) or walks to a new open spot.
+constexpr uint32 CITY_IDLER_STAY_MIN_MS = 10 * IN_MILLISECONDS;
+constexpr uint32 CITY_IDLER_STAY_MAX_MS = 5 * MINUTE * IN_MILLISECONDS;
+constexpr uint32 CITY_IDLER_NPC_VISIT_CHANCE = 20;
 constexpr float CITY_IDLER_SPOT_MIN_DISTANCE = 20.0f;
 constexpr float CITY_IDLER_SPOT_MAX_DISTANCE = 60.0f;
 constexpr uint32 CITY_IDLER_SPOT_ATTEMPTS = 12;
@@ -147,6 +149,12 @@ constexpr uint32 CITY_IDLER_WALK_TIMEOUT_MS = 2 * MINUTE * IN_MILLISECONDS;
 constexpr float EYE_HEIGHT = 1.5f;
 constexpr uint32 SIT_STAND_SALT = 0x5F3759DFu;
 constexpr uint32 MAX_LEVEL_SALT = 0x2545F491u;
+// Each bot rolls its personality anew every period. The period length (2 to 6 hours) and its start
+// differ per bot, so bots do not all switch at the same moment.
+constexpr uint32 PERIOD_MIN_SECONDS = 2 * HOUR;
+constexpr uint32 PERIOD_MAX_SECONDS = 6 * HOUR;
+constexpr uint32 PERIOD_LENGTH_SALT = 0x6C8E9CF5u;
+constexpr uint32 PERIOD_OFFSET_SALT = 0x1B873593u;
 
 // A bot this close to an inn or quest hub counts as being at camp. Matches the minimum distance
 // SelectRandomCampPos uses, so a bot just outside always has a camp to walk back to.
@@ -163,6 +171,25 @@ uint32 MixGuidCounter(uint32 value)
     value *= MIX_MULTIPLIER_2;
     value ^= value >> 16;
     return value;
+}
+
+// Index of the bot's current personality period; changes every 2 to 6 hours.
+uint32 GetPersonalityPeriod(uint32 guidCounter)
+{
+    uint32 const length = PERIOD_MIN_SECONDS +
+                          MixGuidCounter(guidCounter ^ PERIOD_LENGTH_SALT) % (PERIOD_MAX_SECONDS - PERIOD_MIN_SECONDS);
+    uint32 const offset = MixGuidCounter(guidCounter ^ PERIOD_OFFSET_SALT) % length;
+    uint64 const now = static_cast<uint64>(GameTime::GetGameTime().count());
+    return static_cast<uint32>((now + offset) / length);
+}
+
+// Bots in a group or inside a dungeon, raid or battleground ignore their personality.
+bool IsPersonalityFree(Player* bot)
+{
+    if (bot->GetGroup())
+        return false;
+    Map* map = bot->GetMap();
+    return map && !map->Instanceable();
 }
 
 // Fixed per bot, so a bot does not switch between sitting and standing every rest stint.
@@ -356,8 +383,10 @@ BotPersonality BotPersonalityMgr::GetPersonality(Player* bot) const
     if (total == 0)
         return BotPersonality::None;
 
+    uint32 const guidCounter = bot->GetGUID().GetCounter();
+    uint32 const periodSeed = MixGuidCounter(GetPersonalityPeriod(guidCounter));
     BotPersonality personality = BotPersonality::None;
-    uint32 roll = MixGuidCounter(bot->GetGUID().GetCounter()) % total;
+    uint32 roll = MixGuidCounter(guidCounter ^ periodSeed) % total;
     for (auto const& share : shares)
     {
         if (roll < share.second)
@@ -371,8 +400,8 @@ BotPersonality BotPersonalityMgr::GetPersonality(Player* bot) const
     return ApplyMaxLevelOverride(bot, personality);
 }
 
-// At the bot level cap, a second fixed roll turns some bots into CityIdlers or Lazy bots. Raising the
-// cap gives them their own personality back.
+// At the bot level cap, a second roll per period turns some bots into CityIdlers or Lazy bots.
+// Raising the cap gives them their own personality back.
 BotPersonality BotPersonalityMgr::ApplyMaxLevelOverride(Player* bot, BotPersonality personality)
 {
     if (bot->GetLevel() < sPlayerbotAIConfig.RandomBotMaxLevel)
@@ -384,7 +413,9 @@ BotPersonality BotPersonalityMgr::ApplyMaxLevelOverride(Player* bot, BotPersonal
     if (total == 0)
         return personality;
 
-    uint32 const roll = MixGuidCounter(bot->GetGUID().GetCounter() ^ MAX_LEVEL_SALT) % total;
+    uint32 const guidCounter = bot->GetGUID().GetCounter();
+    uint32 const periodSeed = MixGuidCounter(GetPersonalityPeriod(guidCounter));
+    uint32 const roll = MixGuidCounter(guidCounter ^ MAX_LEVEL_SALT ^ periodSeed) % total;
     if (roll < cityIdlerShare)
         return BotPersonality::CityIdler;
     if (roll < cityIdlerShare + lazyShare)
@@ -540,14 +571,17 @@ void BotPersonalityMgr::StartCityIdlerStay(Player* bot, NewRpgInfo& info)
 
 bool BotPersonalityMgr::HandleCityIdlerIdle(Player* bot, NewRpgInfo& info)
 {
-    if (!bot || GetPersonality(bot) != BotPersonality::CityIdler)
+    if (!bot || !IsPersonalityFree(bot))
         return false;
+
+    if (GetPersonality(bot) != BotPersonality::CityIdler)
+        return TrySendFormerCityIdlerBack(bot);
 
     if (!IsInCapital(bot))
         return TrySendCityIdlerToCity(bot);
 
-    // Grouped or busy idlers follow the normal RPG logic.
-    if (!bot->IsAlive() || bot->IsInCombat() || bot->GetGroup())
+    // Busy idlers follow the normal RPG logic.
+    if (!bot->IsAlive() || bot->IsInCombat())
         return false;
 
     bool staying = false;
@@ -587,7 +621,7 @@ bool BotPersonalityMgr::HandleCityIdlerWalk(Player* bot, NewRpgInfo& info, World
                                             bool& statusChanged)
 {
     statusChanged = false;
-    if (!bot || GetPersonality(bot) != BotPersonality::CityIdler || !IsInCapital(bot))
+    if (!bot || !IsPersonalityFree(bot) || GetPersonality(bot) != BotPersonality::CityIdler || !IsInCapital(bot))
         return false;
 
     float const distance = bot->GetExactDist(spot);
@@ -604,16 +638,23 @@ bool BotPersonalityMgr::HandleCityIdlerWalk(Player* bot, NewRpgInfo& info, World
     return true;
 }
 
-bool BotPersonalityMgr::TrySendCityIdlerToCity(Player* bot) const
+// Teleports reset the bot's AI, which would drop a pending dungeon finder proposal, so never teleport
+// a bot that is queued or has a proposal.
+bool BotPersonalityMgr::CanTeleportNow(Player* bot)
+{
+    if (!bot->IsAlive() || bot->IsInCombat() || bot->IsInFlight() || bot->IsBeingTeleported())
+        return false;
+    if (bot->InBattlegroundQueue() || sLFGMgr->GetState(bot->GetGUID()) != lfg::LFG_STATE_NONE)
+        return false;
+    return IsPersonalityFree(bot);
+}
+
+bool BotPersonalityMgr::TrySendCityIdlerToCity(Player* bot)
 {
     if (!bot || GetPersonality(bot) != BotPersonality::CityIdler || IsInCapital(bot))
         return false;
 
-    if (!bot->IsAlive() || bot->IsInCombat() || bot->IsInFlight() || bot->GetGroup() || bot->IsBeingTeleported())
-        return false;
-
-    Map* map = bot->GetMap();
-    if (!map || map->Instanceable())
+    if (!CanTeleportNow(bot))
         return false;
 
     uint32 const zoneId = SelectCityIdlerCity(bot);
@@ -624,7 +665,43 @@ bool BotPersonalityMgr::TrySendCityIdlerToCity(Player* bot) const
     for (WorldLocation& loc : locs)
         RandomizeArrivalSpot(loc);
     sRandomPlayerbotMgr.RandomTeleportToLocations(bot, locs);
-    return bot->IsBeingTeleported();
+    if (!bot->IsBeingTeleported())
+        return false;
+
+    std::lock_guard<std::mutex> lock(_stayMutex);
+    _sentToCity.insert(bot->GetGUID().GetCounter());
+    return true;
+}
+
+bool BotPersonalityMgr::TrySendFormerCityIdlerBack(Player* bot)
+{
+    uint32 const guidCounter = bot->GetGUID().GetCounter();
+    {
+        std::lock_guard<std::mutex> lock(_stayMutex);
+        if (!_sentToCity.contains(guidCounter))
+            return false;
+    }
+
+    // Left the city on its own (dungeon, flight): nothing to undo.
+    if (!IsInCapital(bot))
+    {
+        std::lock_guard<std::mutex> lock(_stayMutex);
+        _sentToCity.erase(guidCounter);
+        return false;
+    }
+
+    if (!CanTeleportNow(bot))
+        return false;
+
+    // Back to a quest hub of its level, like a player taking the hearthstone home.
+    sRandomPlayerbotMgr.RandomTeleportGrindForLevel(bot);
+    if (!bot->IsBeingTeleported())
+        return false;
+
+    std::lock_guard<std::mutex> lock(_stayMutex);
+    _sentToCity.erase(guidCounter);
+    _cityIdlerStays.erase(guidCounter);
+    return true;
 }
 
 void BotPersonalityMgr::GetRpgWeights(Player* bot, std::array<uint32, RPG_STATUS_END>& weights,
@@ -638,6 +715,9 @@ void BotPersonalityMgr::GetRpgWeights(Player* bot, std::array<uint32, RPG_STATUS
     }
 
     if (!sPlayerbotAIConfig.PersonalityEnabled && !sPlayerbotAIConfig.PersonalityPressureEnabled)
+        return;
+
+    if (!IsPersonalityFree(bot))
         return;
 
     BotPersonality const personality = GetPersonality(bot);
@@ -769,6 +849,7 @@ void BotPersonalityMgr::Reset()
     {
         std::lock_guard<std::mutex> lock(_stayMutex);
         _cityIdlerStays.clear();
+        _sentToCity.clear();
     }
 
     for (auto& teamFactors : _levelFactorPct)
