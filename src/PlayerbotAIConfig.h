@@ -279,6 +279,7 @@ public:
     bool SummonAtInnkeepersEnabled;
     std::string CombatStrategies, NonCombatStrategies;
     std::string RandomBotCombatStrategies, RandomBotNonCombatStrategies;
+    std::string BgCombatStrategies, RandomBotBgCombatStrategies;
     std::string ReactStrategies, RandomBotReactStrategies;
     bool ApplyInstanceStrategies;
     uint32 RandomBotMinLevel, RandomBotMaxLevel;

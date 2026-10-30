@@ -1408,6 +1408,15 @@ Playerbots.RandomBotNonCombatStrategies = ""
 Playerbots.CombatStrategies = ""
 Playerbots.NonCombatStrategies = ""
 
+# Additional battleground combat strategies
+# Strategies added here are applied only while the bot is inside a battleground or arena, after the
+# battleground defaults. Use these to change PvP behaviour without touching PvE, e.g. "-potions" to
+# stop bots drinking healing and mana potions in battlegrounds.
+# The generic strategy settings above are applied before the battleground defaults, so a "-potions"
+# placed there is re-added inside battlegrounds; put it here instead.
+Playerbots.RandomBotBgCombatStrategies = ""
+Playerbots.BgCombatStrategies = ""
+
 # Reaction engine strategy overrides.
 # Strategy modifiers applied to the reaction engine after the defaults.
 # Defaults are: "react", "chat".

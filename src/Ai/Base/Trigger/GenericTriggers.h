@@ -947,7 +947,12 @@ class SelfResurrectTrigger : public Trigger
 public:
     SelfResurrectTrigger(PlayerbotAI* botAI) : Trigger(botAI, "can self resurrect") {}
 
-    bool IsActive() override { return !bot->IsAlive() && bot->GetUInt32Value(PLAYER_SELF_RES_SPELL); }
+    // Never in a battleground: the bot would stand up in the middle of the fight that killed it,
+    // while the spirit healer brings it back at full health anyway.
+    bool IsActive() override
+    {
+        return !bot->IsAlive() && !bot->InBattleground() && bot->GetUInt32Value(PLAYER_SELF_RES_SPELL);
+    }
 };
 
 class NewPetTrigger : public Trigger

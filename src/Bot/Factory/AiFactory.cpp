@@ -494,6 +494,13 @@ void AiFactory::AddDefaultCombatStrategies(Player* player, PlayerbotAI* const fa
         engine->removeStrategy("custom::say", false);
         engine->removeStrategy("threat", false);
         engine->addStrategy("boost", false);
+
+        // Battleground-only overrides. Applied after the battleground defaults above, which
+        // re-add strategies (e.g. "potions") that the generic overrides may have removed.
+        if (sRandomPlayerbotMgr.IsRandomBot(player))
+            engine->ChangeStrategy(sPlayerbotAIConfig.RandomBotBgCombatStrategies);
+        else
+            engine->ChangeStrategy(sPlayerbotAIConfig.BgCombatStrategies);
     }
 }
 

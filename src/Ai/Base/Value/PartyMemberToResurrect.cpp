@@ -43,6 +43,11 @@ private:
 
 Unit* PartyMemberToResurrect::Calculate()
 {
+    // No manual resurrects in battlegrounds: the spirit healer revives at full health, a cast
+    // resurrect brings the target back at a fraction of it and keeps the caster out of the fight.
+    if (bot->InBattleground())
+        return nullptr;
+
     FindDeadPlayer finder(this);
     return FindPartyMember(finder);
 }

@@ -267,5 +267,5 @@ bool SelfResurrectAction::Execute(Event /*event*/)
 }
 bool SelfResurrectAction::isUseful()
 {
-    return !bot->IsAlive() && bot->GetUInt32Value(PLAYER_SELF_RES_SPELL);
+    return !bot->IsAlive() && !bot->InBattleground() && bot->GetUInt32Value(PLAYER_SELF_RES_SPELL);
 }

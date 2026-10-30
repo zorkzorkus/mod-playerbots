@@ -6,8 +6,11 @@
 
 #include "BotPersonalityMgr.h"
 #include "AreaDefines.h"
+#include "CellImpl.h"
 #include "DBCStores.h"
 #include "GameTime.h"
+#include "GridNotifiers.h"
+#include "GridNotifiersImpl.h"
 #include "LFGMgr.h"
 #include "Log.h"
 #include "Map.h"
@@ -23,6 +26,7 @@
 #include "ScriptMgr.h"
 #include <algorithm>
 #include <cmath>
+#include <list>
 
 namespace
 {
@@ -226,10 +230,36 @@ bool HasClearance(Map* map, uint32 phaseMask, float x, float y, float z)
     return true;
 }
 
+// Nearest other player within range. WorldObject::SelectNearestPlayer does not exclude the caller, so a
+// player is always its own nearest player, and facing itself is an angle of exactly 0 (due north).
+Player* NearestOtherPlayer(Player* bot, float range)
+{
+    std::list<Player*> players;
+    Acore::AnyPlayerInObjectRangeCheck check(bot, range);
+    Acore::PlayerListSearcher<Acore::AnyPlayerInObjectRangeCheck> searcher(bot, players, check);
+    Cell::VisitObjects(bot, searcher, range);
+
+    Player* nearest = nullptr;
+    float nearestDistance = range;
+    for (Player* player : players)
+    {
+        if (player == bot)
+            continue;
+
+        float const distance = bot->GetDistance(player);
+        if (!nearest || distance < nearestDistance)
+        {
+            nearest = player;
+            nearestDistance = distance;
+        }
+    }
+    return nearest;
+}
+
 // Faces a player or bot standing close by, otherwise a random direction with open view.
 void FaceSomethingSensible(Player* bot)
 {
-    if (Player* neighbour = bot->SelectNearestPlayer(CITY_IDLER_FACE_PLAYER_DISTANCE))
+    if (Player* neighbour = NearestOtherPlayer(bot, CITY_IDLER_FACE_PLAYER_DISTANCE))
     {
         bot->SetFacingToObject(neighbour);
         return;
@@ -566,6 +596,9 @@ void BotPersonalityMgr::StartCityIdlerStay(Player* bot, NewRpgInfo& info)
         _cityIdlerStays[bot->GetGUID().GetCounter()] = {getMSTime(),
                                                         urand(CITY_IDLER_STAY_MIN_MS, CITY_IDLER_STAY_MAX_MS)};
     }
+    // Every stay, not only one reached by walking: a bot that stays where it was teleported to
+    // would otherwise keep the teleport's facing, and all of them would look the same way.
+    FaceSomethingSensible(bot);
     StartRestHere(bot, info);
 }
 
@@ -632,7 +665,6 @@ bool BotPersonalityMgr::HandleCityIdlerWalk(Player* bot, NewRpgInfo& info, World
         return true;
 
     bot->StopMoving();
-    FaceSomethingSensible(bot);
     StartCityIdlerStay(bot, info);
     statusChanged = true;
     return true;

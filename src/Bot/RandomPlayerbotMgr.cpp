@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <boost/thread/thread.hpp>
+#include <cmath>
 #include <cstdlib>
 #include <ctime>
 #include <iomanip>
@@ -1805,7 +1806,9 @@ void RandomPlayerbotMgr::RandomTeleport(Player* bot, std::vector<WorldLocation>&
         if (botAI)
             botAI->Reset(true);
         bot->RemoveAurasWithInterruptFlags(AURA_INTERRUPT_FLAG_TELEPORTED | AURA_INTERRUPT_FLAG_CHANGE_MAP);
-        bot->TeleportTo(loc.GetMapId(), x, y, z, 0);
+        // Random facing: bots that land and stand still would otherwise all look the same way.
+        float const orientation = frand(0.0f, 2.0f * static_cast<float>(M_PI));
+        bot->TeleportTo(loc.GetMapId(), x, y, z, orientation);
         bot->SendMovementFlagUpdate();
 
         if (pmo)
