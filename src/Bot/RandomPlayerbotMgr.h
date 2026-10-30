@@ -7,13 +7,16 @@
 #ifndef PLAYERBOTS_RANDOMPLAYERBOTMGR_H
 #define PLAYERBOTS_RANDOMPLAYERBOTMGR_H
 
+#include <atomic>
+#include <mutex>
+#include <set>
+#include <unordered_set>
+
 #include "GameTime.h"
 #include "NewRpgInfo.h"
 #include "ObjectGuid.h"
 #include "PlayerbotCommandServer.h"
 #include "PlayerbotMgr.h"
-#include <atomic>
-#include <unordered_set>
 
 struct BattlegroundInfo
 {
@@ -196,7 +199,8 @@ private:
 
         BattlegroundData.clear();  // Clear here and here only.
 
-        // Cleanup on server start: orphaned pet data that's often left behind by bot pets that no longer exist in the DB
+        // Cleanup on server start: orphaned pet data that's often left behind by bot pets that no longer exist in the
+        // DB
         CharacterDatabase.Execute("DELETE FROM pet_aura WHERE guid NOT IN (SELECT id FROM character_pet)");
         CharacterDatabase.Execute("DELETE FROM pet_spell WHERE guid NOT IN (SELECT id FROM character_pet)");
         CharacterDatabase.Execute("DELETE FROM pet_spell_cooldown WHERE guid NOT IN (SELECT id FROM character_pet)");
@@ -250,6 +254,7 @@ private:
     void RandomTeleport(Player* bot);
     void RandomTeleport(Player* bot, std::vector<WorldLocation>& locs, bool hearth = false);
     uint32 GetZoneLevel(uint16 mapId, float teleX, float teleY, float teleZ);
+    void UpdatePlayerZones();
     std::vector<WorldLocation> GetPlayerZoneTeleportLocations(std::vector<WorldLocation> const& locs, Player* bot);
     typedef void (RandomPlayerbotMgr::*ConsoleCommandHandler)(Player*);
     std::vector<Player*> players;
@@ -261,12 +266,15 @@ private:
     std::unordered_map<uint32, BotEventCache> eventCache;
     std::unordered_set<uint32> currentBots;
     uint32 playersLevel;
+    // Written on the world thread, read from map threads.
+    std::set<std::pair<uint32, uint32>> _playerZones;
+    std::mutex _playerZonesLock;
 
     // Account lists
-    std::vector<uint32> rndBotTypeAccounts;             // Accounts marked as RNDbot (type 1)
-    std::vector<uint32> addClassTypeAccounts;           // Accounts marked as AddClass (type 2)
+    std::vector<uint32> rndBotTypeAccounts;    // Accounts marked as RNDbot (type 1)
+    std::vector<uint32> addClassTypeAccounts;  // Accounts marked as AddClass (type 2)
 
-    //void ScaleBotActivity();      // Deprecated function
+    // void ScaleBotActivity();      // Deprecated function
     static inline uint32 NowSeconds() { return static_cast<uint32>(GameTime::GetGameTime().count()); }
 };
 
